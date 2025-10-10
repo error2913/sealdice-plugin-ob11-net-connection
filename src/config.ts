@@ -14,9 +14,9 @@ export class ConfigManager {
     static registerConfig() {
         this.ext = ConfigManager.getExt(NAME);
         seal.ext.registerTemplateConfig(this.ext, 'HTTP地址', ['http://127.0.0.1:8091'], '修改后保存并重新初始化');
-        seal.ext.registerTemplateConfig(this.ext, 'HTTP Access Token', ['', ''], '在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空');
+        seal.ext.registerTemplateConfig(this.ext, 'HTTP Access Token', [''], '在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空');
         seal.ext.registerTemplateConfig(this.ext, 'WS地址', ['ws://127.0.0.1:8081'], '修改后保存并重新初始化');
-        seal.ext.registerTemplateConfig(this.ext, 'WS Access Token', ['', ''], '在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空');
+        seal.ext.registerTemplateConfig(this.ext, 'WS Access Token', [''], '在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空');
         seal.ext.registerOptionConfig(this.ext, "日志打印方式", "简短", ["永不", "简短", "详细"], '');
         seal.ext.registerOptionConfig(this.ext, "事件处理", "记录", ["忽略", "记录"], '设置对WebSocket事件的处理方式');
     }
