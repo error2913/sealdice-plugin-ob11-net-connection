@@ -1,7 +1,7 @@
 {
-  "name": "a-long-story",
+  "name": "sealdice-plugin-ob11-net-connection",
   "version": "1.0.0",
-  "description": "once upon a time, ...",
+  "description": "SealDice插件，用于OB11网络连接",
   "main": "build/index.js",
   "typings": "build/index.d.ts",
   "repository": "https://github.com/sealdice/seal-swordworld",

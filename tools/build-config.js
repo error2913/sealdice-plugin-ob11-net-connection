@@ -1,4 +1,4 @@
-var filename = 'sealdice-js-ext.js'
+var filename = 'ob11网络连接依赖.js'
 
 module.exports = {
   dev: {
