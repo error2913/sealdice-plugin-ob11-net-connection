@@ -1,5 +1,4 @@
 import { ConfigManager } from "./config";
-import { HTTPManager } from "./http";
 import { NetworkClient } from "./net";
 import { WSManager } from "./ws";
 
@@ -90,7 +89,6 @@ function main() {
 
 
   globalThis.net = NetworkClient;
-  globalThis.http = HTTPManager;
   globalThis.ws = WSManager;
 }
 
