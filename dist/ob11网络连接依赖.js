@@ -193,7 +193,70 @@
   HTTPManager.initDone = false;
 
   // src/ws.ts
+  var WS = class {
+    constructor(ext) {
+      this.name = ext.name;
+      this.onEvent = () => {
+      };
+      this.onMessageEvent = () => {
+      };
+      this.onNoticeEvent = () => {
+      };
+      this.onRequestEvent = () => {
+      };
+      this.onMetaEvent = () => {
+      };
+    }
+  };
   var _WSManager = class _WSManager {
+    static getWs(ext) {
+      return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
+    }
+    // --- 事件分发 ---//
+    static emitEvent(epId, event) {
+      for (const name of Object.keys(this.wsMap)) {
+        const ws = this.wsMap[name];
+        try {
+          ws.onEvent(epId, event);
+        } catch (e) {
+          logger.error(`[${name}] 事件处理错误: ${e.message}`);
+        }
+        switch (event.post_type) {
+          case "message": {
+            try {
+              ws.onMessageEvent(epId, event);
+            } catch (e) {
+              logger.error(`[${name}] message事件处理错误: ${e.message}`);
+            }
+            break;
+          }
+          case "notice": {
+            try {
+              ws.onNoticeEvent(epId, event);
+            } catch (e) {
+              logger.error(`[${name}] notice事件处理错误: ${e.message}`);
+            }
+            break;
+          }
+          case "request": {
+            try {
+              ws.onRequestEvent(epId, event);
+            } catch (e) {
+              logger.error(`[${name}] request事件处理错误: ${e.message}`);
+            }
+            break;
+          }
+          case "meta_event": {
+            try {
+              ws.onMetaEvent(epId, event);
+            } catch (e) {
+              logger.error(`[${name}] meta_event事件处理错误: ${e.message}`);
+            }
+            break;
+          }
+        }
+      }
+    }
     static async init() {
       this.urlMap = {};
       Object.keys(this.wsConnections).forEach((epId) => {
@@ -271,31 +334,6 @@
       }
       logger.info("WS 初始化完成，ws urlMap: ", JSON.stringify(this.urlMap, null, 2));
       this.initDone = true;
-    }
-    // --- 事件分发 ---//应该改成注册或删除的形式？
-    static onEvent(type, handler) {
-      if (!this.eventListeners[type]) this.eventListeners[type] = [];
-      this.eventListeners[type].push(handler);
-    }
-    static emitEvent(type, epId, event) {
-      if (this.eventListeners[type]) {
-        for (let fn of this.eventListeners[type]) {
-          try {
-            fn(epId, event);
-          } catch (e) {
-            logger.error(`事件处理错误: ${e.message}`);
-          }
-        }
-      }
-      if (this.eventListeners["*"]) {
-        for (let fn of this.eventListeners["*"]) {
-          try {
-            fn(epId, event);
-          } catch (e) {
-            logger.error(`事件处理错误: ${e.message}`);
-          }
-        }
-      }
     }
     /**
      * 获取事件的简要描述信息，便于日志记录和调试
@@ -396,10 +434,7 @@
           logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
         }
       }
-      const eventType = `${event.post_type}.${event.message_type || event.notice_type || event.request_type || event.meta_event_type || "unknown"}`;
-      this.emitEvent(eventType, epId, event);
-      this.emitEvent(event.post_type, epId, event);
-      this.emitEvent("*", epId, event);
+      this.emitEvent(epId, event);
     }
     /**
      * 创建一个 WebSocket 连接并管理其生命周期。
@@ -547,7 +582,7 @@
   _WSManager.urlMap = {};
   _WSManager.initDone = false;
   _WSManager.wsConnections = {};
-  _WSManager.eventListeners = {};
+  _WSManager.wsMap = {};
   var WSManager = _WSManager;
 
   // src/net.ts

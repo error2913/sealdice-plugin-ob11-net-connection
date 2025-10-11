@@ -9,12 +9,61 @@ export interface ConnectionInfo {
     apiCallbacks: Map<string, { resolve: (data: any) => void, reject: (error: Error) => void }>
 };
 
+export class WS {
+    name: string;
+    onEvent: (epId: string, event: OneBot11.Event) => void;
+    onMessageEvent: (epId: string, event: OneBot11.MessageEvent) => void;
+    onNoticeEvent: (epId: string, event: OneBot11.NoticeEvent) => void;
+    onRequestEvent: (epId: string, event: OneBot11.RequestEvent) => void;
+    onMetaEvent: (epId: string, event: OneBot11.MetaEvent) => void;
+
+    constructor(ext: seal.ExtInfo) {
+        this.name = ext.name;
+        this.onEvent = () => { };
+        this.onMessageEvent = () => { };
+        this.onNoticeEvent = () => { };
+        this.onRequestEvent = () => { };
+        this.onMetaEvent = () => { };
+    }
+}
+
 export class WSManager {
     static urlMap: { [key: string]: { url: string, token: string } } = {};
     static initDone: boolean = false;
 
     static wsConnections: { [key: string]: ConnectionInfo } = {};
-    static eventListeners = {};
+    static wsMap: { [key: string]: WS } = {};
+
+    static getWs(ext: seal.ExtInfo) {
+        return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
+    }
+
+    // --- 事件分发 ---//
+    static emitEvent(epId: string, event: OneBot11.Event) {
+        for (const name of Object.keys(this.wsMap)) {
+            const ws = this.wsMap[name];
+
+            try { ws.onEvent(epId, event); } catch (e) { logger.error(`[${name}] 事件处理错误: ${e.message}`); }
+            switch (event.post_type) {
+                case 'message': {
+                    try { ws.onMessageEvent(epId, event as OneBot11.MessageEvent); } catch (e) { logger.error(`[${name}] message事件处理错误: ${e.message}`); }
+                    break;
+                }
+                case 'notice': {
+                    try { ws.onNoticeEvent(epId, event as OneBot11.NoticeEvent); } catch (e) { logger.error(`[${name}] notice事件处理错误: ${e.message}`); }
+                    break;
+                }
+                case 'request': {
+                    try { ws.onRequestEvent(epId, event as OneBot11.RequestEvent); } catch (e) { logger.error(`[${name}] request事件处理错误: ${e.message}`); }
+                    break;
+                }
+                case 'meta_event': {
+                    try { ws.onMetaEvent(epId, event as OneBot11.MetaEvent); } catch (e) { logger.error(`[${name}] meta_event事件处理错误: ${e.message}`); }
+                    break;
+                }
+            }
+        }
+    }
 
     static async init() {
         this.urlMap = {};
@@ -109,24 +158,6 @@ export class WSManager {
 
         logger.info('WS 初始化完成，ws urlMap: ', JSON.stringify(this.urlMap, null, 2));
         this.initDone = true;
-    }
-
-    // --- 事件分发 ---//应该改成注册或删除的形式？
-    static onEvent(type: string, handler: (epId: string, event: OneBot11.Event) => void) {
-        if (!this.eventListeners[type]) this.eventListeners[type] = [];
-        this.eventListeners[type].push(handler);
-    }
-    static emitEvent(type: string, epId: string, event: OneBot11.Event) {
-        if (this.eventListeners[type]) {
-            for (let fn of this.eventListeners[type]) {
-                try { fn(epId, event); } catch (e) { logger.error(`事件处理错误: ${e.message}`); }
-            }
-        }
-        if (this.eventListeners["*"]) {
-            for (let fn of this.eventListeners["*"]) {
-                try { fn(epId, event); } catch (e) { logger.error(`事件处理错误: ${e.message}`); }
-            }
-        }
     }
 
     /**
@@ -232,11 +263,7 @@ export class WSManager {
             }
         }
 
-        const eventType = `${event.post_type}.${(event as OneBot11.MessageEvent).message_type || (event as OneBot11.NoticeEvent).notice_type || (event as OneBot11.RequestEvent).request_type || (event as OneBot11.MetaEvent).meta_event_type || 'unknown'}`;
-
-        this.emitEvent(eventType, epId, event);
-        this.emitEvent(event.post_type, epId, event);
-        this.emitEvent("*", epId, event);
+        this.emitEvent(epId, event);
     }
 
     /**
