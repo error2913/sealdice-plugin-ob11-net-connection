@@ -1,5 +1,6 @@
 import { ConfigManager } from "./config";
 import { NetworkClient } from "./net";
+import { WSManager } from "./ws";
 
 function main() {
   ConfigManager.registerConfig();
@@ -42,7 +43,7 @@ function main() {
       }
       case 'close': {
         const targetEpId = cmdArgs.getArgN(2);
-        const count = globalThis.net.closeWebSocket(targetEpId);
+        const count = WSManager.closeWs(targetEpId);
         if (targetEpId) {
           seal.replyToSender(ctx, msg, count > 0 ? `已关闭 ${targetEpId} 的连接` : `${targetEpId} 没有连接`);
         } else {
@@ -51,7 +52,7 @@ function main() {
         return ret;
       }
       case 'status': {
-        const status = globalThis.net.getWebSocketStatus();
+        const status = WSManager.getWsStatus();
         const statusText = Object.keys(status).length > 0 ?
           JSON.stringify(status, null, 2) : '没有WebSocket连接';
         seal.replyToSender(ctx, msg, `WebSocket连接状态:\n${statusText}`);
@@ -73,7 +74,7 @@ function main() {
           return acc;
         }, {});
 
-        globalThis.net.callApi(epId, method, data).then(result => {
+        NetworkClient.callApi(epId, method, data).then(result => {
           seal.replyToSender(ctx, msg, JSON.stringify(result, null, 2));
         }).catch(error => {
           seal.replyToSender(ctx, msg, `调用失败: ${error.message}`);

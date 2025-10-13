@@ -71,7 +71,7 @@ export class NetworkClient {
             } else {
                 const { url } = WSManager.urlMap[epId];
                 logger.info(`请求地址: ${url}，请求方法: ${method}，请求参数: ${JSON.stringify(data)}`);
-                return await WSManager.callWebSocketApi(epId, method, data || {});
+                return await WSManager.callApiByWs(epId, method, data || {});
             }
         } catch (error) {
             logger.error(`网络API调用失败: ${error.message}`);

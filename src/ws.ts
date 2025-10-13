@@ -143,7 +143,7 @@ export class WSManager {
                             token: token
                         };
 
-                        this.createWebSocketConnection(epId, url, token);
+                        this.createWsConnection(epId, url, token);
                         logger.info(`找到 ${epId} 地址: ${url} `);
                         found = true;
                         break;
@@ -276,7 +276,7 @@ export class WSManager {
      * @param {string} token  Access Token
      * @returns {object}      返回连接信息对象
      */
-    static createWebSocketConnection(epId: string, wsUrl: string, token: string = ''): object {
+    static createWsConnection(epId: string, wsUrl: string, token: string = ''): object {
         if (this.wsConnections[epId]) {
             logger.info(`${epId} 的WebSocket连接已存在，先关闭旧连接`);
             this.wsConnections[epId].ws.close();
@@ -290,7 +290,7 @@ export class WSManager {
         }
 
         const ws = new WebSocket(connectionUrl);
-        const connectionInfo = {
+        const ci: ConnectionInfo = {
             ws: ws,
             url: wsUrl,
             token: token,
@@ -299,7 +299,7 @@ export class WSManager {
         };
 
         ws.onopen = function () {
-            connectionInfo.connected = true;
+            ci.connected = true;
             logger.info(`[${epId}] WebSocket连接成功: ${connectionUrl.replace(/access_token=[^&]*/, 'access_token=***')}`);
         };
 
@@ -307,14 +307,23 @@ export class WSManager {
             try {
                 const data = JSON.parse(event.data);
 
-                if (data.hasOwnProperty('echo') && connectionInfo.apiCallbacks.has(data.echo)) {
-                    const callback = connectionInfo.apiCallbacks.get(data.echo);
-                    connectionInfo.apiCallbacks.delete(data.echo);
+                if (data.hasOwnProperty('echo') && ci.apiCallbacks.has(data.echo)) {
+                    const callback = ci.apiCallbacks.get(data.echo);
+                    ci.apiCallbacks.delete(data.echo);
 
-                    if (data.status === 'ok') {
-                        callback.resolve(data.data);
-                    } else {
-                        callback.reject(new Error(`API调用失败: ${data.message || data.wording || '未知错误'}`));
+                    if (!callback) {
+                        logger.warning(`[${epId}] 收到响应但找不到对应的回调: ${data.echo}`);
+                        return;
+                    }
+
+                    try {
+                        if (data.status === 'ok') {
+                            callback.resolve(data.data || {});
+                        } else {
+                            callback.reject(new Error(`API调用失败: ${data.message || data.wording || '未知错误'}`));
+                        }
+                    } catch (error) {
+                        logger.error(`[${epId}] 处理回调时发生错误:`, error);
                     }
                 }
 
@@ -334,25 +343,25 @@ export class WSManager {
 
         ws.onerror = function (event) {
             logger.error(`[${epId}] WebSocket错误:`, JSON.stringify(event));
-            connectionInfo.connected = false;
+            ci.connected = false;
         };
 
         ws.onclose = function (event) {
-            connectionInfo.connected = false;
+            ci.connected = false;
             if (event.code !== 1000) {
                 logger.warning(`[${epId}] WebSocket异常关闭: ${event.code} ${event.reason}`);
             } else {
                 logger.info(`[${epId}] WebSocket正常关闭`);
             }
 
-            connectionInfo.apiCallbacks.forEach(callback => {
+            ci.apiCallbacks.forEach(callback => {
                 callback.reject(new Error('WebSocket连接已关闭'));
             });
-            connectionInfo.apiCallbacks.clear();
+            ci.apiCallbacks.clear();
         };
 
-        this.wsConnections[epId] = connectionInfo;
-        return connectionInfo;
+        this.wsConnections[epId] = ci;
+        return ci;
     }
 
     /**
@@ -362,32 +371,49 @@ export class WSManager {
      * @param {object} params API参数对象
      * @returns {Promise<object>} 返回API响应的data字段
      */
-    static async callWebSocketApi(epId: string, action: string, params: object = {}): Promise<object> {
-        const connectionInfo = this.wsConnections[epId];
-        if (!connectionInfo || !connectionInfo.connected) {
+    static async callApiByWs(epId: string, action: string, params: object = {}): Promise<object> {
+        const ci = this.wsConnections[epId];
+        if (!ci || !ci.connected || ci.ws.readyState !== Number(WebSocket.OPEN)) {
             throw new Error(`WebSocket连接未建立或已断开: ${epId}`);
         }
 
         return new Promise((resolve, reject) => {
-            const echo = `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const echo = `api_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
-            connectionInfo.apiCallbacks.set(echo, { resolve, reject });
-
-            const requestData = {
-                action: action,
-                params: params,
-                echo: echo
-            };
-
-            logger.info(`[${epId}] WebSocket发送API请求: ${JSON.stringify(requestData)}`);
-            connectionInfo.ws.send(JSON.stringify(requestData));
-
-            setTimeout(() => {
-                if (connectionInfo.apiCallbacks.has(echo)) {
-                    connectionInfo.apiCallbacks.delete(echo);
-                    reject(new Error('API调用超时'));
+            // 设置超时处理
+            const timeoutId = setTimeout(() => {
+                if (ci.apiCallbacks.has(echo)) {
+                    ci.apiCallbacks.delete(echo);
+                    reject(new Error(`API调用超时 (${action})`));
                 }
             }, 10000);
+
+            ci.apiCallbacks.set(echo, {
+                resolve: (data: object) => {
+                    clearTimeout(timeoutId);
+                    resolve(data);
+                },
+                reject: (error: Error) => {
+                    clearTimeout(timeoutId);
+                    reject(error);
+                }
+            });
+
+            try {
+                const requestData = {
+                    action: action,
+                    params: params,
+                    echo: echo
+                };
+
+                logger.info(`[${epId}] WebSocket发送API请求: ${JSON.stringify(requestData)}`);
+                ci.ws.send(JSON.stringify(requestData));
+
+            } catch (error) {
+                clearTimeout(timeoutId);
+                ci.apiCallbacks.delete(echo);
+                reject(new Error(`发送API请求失败: ${error.message}`));
+            }
         });
     }
 
@@ -396,7 +422,7 @@ export class WSManager {
      * 关闭WebSocket连接
      * @param {string} epId 骰子的QQ号，如果不提供则关闭所有连接
      */
-    static closeWebSocket(epId: string) {
+    static closeWs(epId: string) {
         if (epId) {
             if (this.wsConnections[epId]) {
                 this.wsConnections[epId].ws.close();
@@ -422,14 +448,14 @@ export class WSManager {
     /**
      * 获取WebSocket连接状态
      */
-    static getWebSocketStatus() {
+    static getWsStatus() {
         const status = {};
         Object.keys(this.wsConnections).forEach(epId => {
-            const conn = this.wsConnections[epId];
+            const ci = this.wsConnections[epId];
             status[epId] = {
-                connected: conn.connected,
-                url: conn.url,
-                readyState: conn.ws.readyState
+                connected: ci.connected,
+                url: ci.url,
+                readyState: ci.ws.readyState
             };
         });
         return status;

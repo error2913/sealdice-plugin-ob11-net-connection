@@ -321,7 +321,7 @@
                 url,
                 token
               };
-              this.createWebSocketConnection(epId, url, token);
+              this.createWsConnection(epId, url, token);
               logger.info(`找到 ${epId} 地址: ${url} `);
               found = true;
               break;
@@ -446,7 +446,7 @@
      * @param {string} token  Access Token
      * @returns {object}      返回连接信息对象
      */
-    static createWebSocketConnection(epId, wsUrl, token = "") {
+    static createWsConnection(epId, wsUrl, token = "") {
       if (this.wsConnections[epId]) {
         logger.info(`${epId} 的WebSocket连接已存在，先关闭旧连接`);
         this.wsConnections[epId].ws.close();
@@ -458,7 +458,7 @@
         connectionUrl = `${wsUrl}${separator}access_token=${encodeURIComponent(token)}`;
       }
       const ws = new WebSocket(connectionUrl);
-      const connectionInfo = {
+      const ci = {
         ws,
         url: wsUrl,
         token,
@@ -466,19 +466,27 @@
         apiCallbacks: /* @__PURE__ */ new Map()
       };
       ws.onopen = function() {
-        connectionInfo.connected = true;
+        ci.connected = true;
         logger.info(`[${epId}] WebSocket连接成功: ${connectionUrl.replace(/access_token=[^&]*/, "access_token=***")}`);
       };
       ws.onmessage = function(event) {
         try {
           const data = JSON.parse(event.data);
-          if (data.hasOwnProperty("echo") && connectionInfo.apiCallbacks.has(data.echo)) {
-            const callback = connectionInfo.apiCallbacks.get(data.echo);
-            connectionInfo.apiCallbacks.delete(data.echo);
-            if (data.status === "ok") {
-              callback.resolve(data.data);
-            } else {
-              callback.reject(new Error(`API调用失败: ${data.message || data.wording || "未知错误"}`));
+          if (data.hasOwnProperty("echo") && ci.apiCallbacks.has(data.echo)) {
+            const callback = ci.apiCallbacks.get(data.echo);
+            ci.apiCallbacks.delete(data.echo);
+            if (!callback) {
+              logger.warning(`[${epId}] 收到响应但找不到对应的回调: ${data.echo}`);
+              return;
+            }
+            try {
+              if (data.status === "ok") {
+                callback.resolve(data.data || {});
+              } else {
+                callback.reject(new Error(`API调用失败: ${data.message || data.wording || "未知错误"}`));
+              }
+            } catch (error) {
+              logger.error(`[${epId}] 处理回调时发生错误:`, error);
             }
           } else if (data.hasOwnProperty("post_type")) {
             _WSManager.handleEvent(epId, data);
@@ -493,22 +501,22 @@
       };
       ws.onerror = function(event) {
         logger.error(`[${epId}] WebSocket错误:`, JSON.stringify(event));
-        connectionInfo.connected = false;
+        ci.connected = false;
       };
       ws.onclose = function(event) {
-        connectionInfo.connected = false;
+        ci.connected = false;
         if (event.code !== 1e3) {
           logger.warning(`[${epId}] WebSocket异常关闭: ${event.code} ${event.reason}`);
         } else {
           logger.info(`[${epId}] WebSocket正常关闭`);
         }
-        connectionInfo.apiCallbacks.forEach((callback) => {
+        ci.apiCallbacks.forEach((callback) => {
           callback.reject(new Error("WebSocket连接已关闭"));
         });
-        connectionInfo.apiCallbacks.clear();
+        ci.apiCallbacks.clear();
       };
-      this.wsConnections[epId] = connectionInfo;
-      return connectionInfo;
+      this.wsConnections[epId] = ci;
+      return ci;
     }
     /**
      * 通过WebSocket调用OneBot 11 API。
@@ -517,34 +525,49 @@
      * @param {object} params API参数对象
      * @returns {Promise<object>} 返回API响应的data字段
      */
-    static async callWebSocketApi(epId, action, params = {}) {
-      const connectionInfo = this.wsConnections[epId];
-      if (!connectionInfo || !connectionInfo.connected) {
+    static async callApiByWs(epId, action, params = {}) {
+      const ci = this.wsConnections[epId];
+      if (!ci || !ci.connected || ci.ws.readyState !== Number(WebSocket.OPEN)) {
         throw new Error(`WebSocket连接未建立或已断开: ${epId}`);
       }
       return new Promise((resolve, reject) => {
-        const echo = `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        connectionInfo.apiCallbacks.set(echo, { resolve, reject });
-        const requestData = {
-          action,
-          params,
-          echo
-        };
-        logger.info(`[${epId}] WebSocket发送API请求: ${JSON.stringify(requestData)}`);
-        connectionInfo.ws.send(JSON.stringify(requestData));
-        setTimeout(() => {
-          if (connectionInfo.apiCallbacks.has(echo)) {
-            connectionInfo.apiCallbacks.delete(echo);
-            reject(new Error("API调用超时"));
+        const echo = `api_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        const timeoutId = setTimeout(() => {
+          if (ci.apiCallbacks.has(echo)) {
+            ci.apiCallbacks.delete(echo);
+            reject(new Error(`API调用超时 (${action})`));
           }
         }, 1e4);
+        ci.apiCallbacks.set(echo, {
+          resolve: (data) => {
+            clearTimeout(timeoutId);
+            resolve(data);
+          },
+          reject: (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          }
+        });
+        try {
+          const requestData = {
+            action,
+            params,
+            echo
+          };
+          logger.info(`[${epId}] WebSocket发送API请求: ${JSON.stringify(requestData)}`);
+          ci.ws.send(JSON.stringify(requestData));
+        } catch (error) {
+          clearTimeout(timeoutId);
+          ci.apiCallbacks.delete(echo);
+          reject(new Error(`发送API请求失败: ${error.message}`));
+        }
       });
     }
     /**
      * 关闭WebSocket连接
      * @param {string} epId 骰子的QQ号，如果不提供则关闭所有连接
      */
-    static closeWebSocket(epId) {
+    static closeWs(epId) {
       if (epId) {
         if (this.wsConnections[epId]) {
           this.wsConnections[epId].ws.close();
@@ -569,14 +592,14 @@
     /**
      * 获取WebSocket连接状态
      */
-    static getWebSocketStatus() {
+    static getWsStatus() {
       const status = {};
       Object.keys(this.wsConnections).forEach((epId) => {
-        const conn = this.wsConnections[epId];
+        const ci = this.wsConnections[epId];
         status[epId] = {
-          connected: conn.connected,
-          url: conn.url,
-          readyState: conn.ws.readyState
+          connected: ci.connected,
+          url: ci.url,
+          readyState: ci.ws.readyState
         };
       });
       return status;
@@ -648,7 +671,7 @@
         } else {
           const { url } = WSManager.urlMap[epId];
           logger.info(`请求地址: ${url}，请求方法: ${method}，请求参数: ${JSON.stringify(data)}`);
-          return await WSManager.callWebSocketApi(epId, method, data || {});
+          return await WSManager.callApiByWs(epId, method, data || {});
         }
       } catch (error) {
         logger.error(`网络API调用失败: ${error.message}`);
@@ -752,7 +775,7 @@
         }
         case "close": {
           const targetEpId = cmdArgs.getArgN(2);
-          const count = globalThis.net.closeWebSocket(targetEpId);
+          const count = WSManager.closeWs(targetEpId);
           if (targetEpId) {
             seal.replyToSender(ctx, msg, count > 0 ? `已关闭 ${targetEpId} 的连接` : `${targetEpId} 没有连接`);
           } else {
@@ -761,7 +784,7 @@
           return ret;
         }
         case "status": {
-          const status = globalThis.net.getWebSocketStatus();
+          const status = WSManager.getWsStatus();
           const statusText = Object.keys(status).length > 0 ? JSON.stringify(status, null, 2) : "没有WebSocket连接";
           seal.replyToSender(ctx, msg, `WebSocket连接状态:
 ${statusText}`);
@@ -782,7 +805,7 @@ ${statusText}`);
             }
             return acc;
           }, {});
-          globalThis.net.callApi(epId, method, data).then((result) => {
+          NetworkClient.callApi(epId, method, data).then((result) => {
             seal.replyToSender(ctx, msg, JSON.stringify(result, null, 2));
           }).catch((error) => {
             seal.replyToSender(ctx, msg, `调用失败: ${error.message}`);
