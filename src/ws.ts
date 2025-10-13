@@ -34,7 +34,10 @@ export class WSManager {
     static wsConnections: { [key: string]: ConnectionInfo } = {};
     static wsMap: { [key: string]: WS } = {};
 
-    static getWs(ext: seal.ExtInfo) {
+    static async getWs(ext: seal.ExtInfo): Promise<WS> {
+        if (!this.initDone) {
+            await this.init();
+        }
         return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
     }
 

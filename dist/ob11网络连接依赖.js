@@ -209,7 +209,10 @@
     }
   };
   var _WSManager = class _WSManager {
-    static getWs(ext) {
+    static async getWs(ext) {
+      if (!this.initDone) {
+        await this.init();
+      }
       return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
     }
     // --- 事件分发 ---//
