@@ -1,6 +1,5 @@
 import { ConfigManager } from "./config";
 import { NetworkClient } from "./net";
-import { WSManager } from "./ws";
 
 function main() {
   ConfigManager.registerConfig();
@@ -89,7 +88,10 @@ function main() {
 
 
   globalThis.net = NetworkClient;
-  globalThis.ws = WSManager;
+  const extHTTP = seal.ext.find('HTTP依赖');
+  if (!extHTTP) {
+    globalThis.http = NetworkClient
+  }
 }
 
 main();

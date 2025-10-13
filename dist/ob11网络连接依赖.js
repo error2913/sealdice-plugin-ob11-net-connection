@@ -594,6 +594,9 @@
       HTTPManager.init();
       WSManager.init();
     }
+    static async getWs(ext) {
+      return await WSManager.getWs(ext);
+    }
     /** 兼容旧版本HTTP依赖 */
     static async getData(epId, val, data = null) {
       return await this.callApi(epId, val, data);
@@ -790,7 +793,10 @@ ${statusText}`);
     };
     ext.cmdMap["net"] = cmd;
     globalThis.net = NetworkClient;
-    globalThis.ws = WSManager;
+    const extHTTP = seal.ext.find("HTTP依赖");
+    if (!extHTTP) {
+      globalThis.http = NetworkClient;
+    }
   }
   main();
 })();

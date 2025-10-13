@@ -1,11 +1,15 @@
 import { HTTPManager } from "./http";
 import { logger } from "./logger";
-import { WSManager } from "./ws";
+import { WS, WSManager } from "./ws";
 
 export class NetworkClient {
     static async init() {
         HTTPManager.init();
         WSManager.init();
+    }
+
+    static async getWs(ext: seal.ExtInfo): Promise<WS> {
+        return await WSManager.getWs(ext);
     }
 
     /** 兼容旧版本HTTP依赖 */

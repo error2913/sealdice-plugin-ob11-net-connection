@@ -3,7 +3,9 @@
 注意依赖关系
 
 ``` javascript
-globalThis.ws.getWs(ext)
+globalThis.net.callApi(epId, method, data);
+
+globalThis.net.getWs(ext)
     .then((ws) => {
         ws.onEvent = (epId, event) => {
             console.log('onEvent', epId, JSON.stringify(event));
@@ -16,8 +18,4 @@ globalThis.ws.getWs(ext)
     .catch((err) => {
         console.log('getWs error:', err);
     });
-```
-
-``` javascript
-globalThis.net.callApi(epId, method, data);
 ```
