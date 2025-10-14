@@ -6,6 +6,6 @@
 // @timestamp    1755278205
 // @license      MIT
 // @homepageURL  https://github.com/error2913/sealdice-plugin-ob11-net-connection/
-// @updateUrl    https://raw.gitmirror.com/error2913/sealdice-plugin-ob11-net-connection/main/ob11网络连接依赖.js
-// @updateUrl    https://raw.githubusercontent.com/error2913/sealdice-plugin-ob11-net-connection/main/ob11网络连接依赖.js
+// @updateUrl    https://raw.gitmirror.com/error2913/sealdice-plugin-ob11-net-connection/main/dist/ob11网络连接依赖.js
+// @updateUrl    https://raw.githubusercontent.com/error2913/sealdice-plugin-ob11-net-connection/main/dist/ob11网络连接依赖.js
 // ==/UserScript==
