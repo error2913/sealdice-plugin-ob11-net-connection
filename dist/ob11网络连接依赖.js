@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ob11网络连接依赖
-// @author       错误，白鱼
+// @author       错误&白鱼
 // @version      2.0.0
-// @description  为插件提供统一的ob11网络连接依赖管理，支持HTTP和WebSocket。\n地址请按照自己的登录方案自行配置，支持http和ws协议，支持多个账号，插件会自动识别当前账号使用对应的连接地址。\nWebSocket会保持持久连接并接收事件推送。\n提供指令 .net 可以直接调用\n在其他插件中使用方法: globalThis.net.callApi(epId, method, data=null)\nepId为骰子账号QQ:12345，method为方法，如get_login_info，data为参数。\n方法可参见https://github.com/botuniverse/onebot-11/blob/master/api/public.md#%E5%85%AC%E5%BC%80-api
+// @description  为插件提供统一的ob11网络连接依赖管理，支持HTTP和WebSocket。\n地址请按照自己的登录方案自行配置，支持http和ws协议，支持多个账号。\nWebSocket会保持持久连接并接收事件推送。\n提供指令 .net 可以直接调用\n在其他插件中使用方法: globalThis.net.callApi(epId, method, data=null)\nepId为骰子账号QQ:12345，method为方法，如get_login_info，data为参数。\n方法可参见https://github.com/botuniverse/onebot-11/blob/master/api/public.md#%E5%85%AC%E5%BC%80-api
 // @timestamp    1755278205
 // @license      MIT
 // @homepageURL  https://github.com/error2913/sealdice-plugin-ob11-net-connection/
