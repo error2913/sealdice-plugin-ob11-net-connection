@@ -193,7 +193,7 @@
   HTTPManager.initDone = false;
 
   // src/ws.ts
-  var WS = class {
+  var EventDispatcher = class {
     constructor(name) {
       this.name = name;
       this.onEvent = () => {
@@ -209,12 +209,12 @@
     }
   };
   var _WSManager = class _WSManager {
-    static async getWs(ext) {
+    static async getEventDispatcher(ext) {
       if (!this.initDone) {
         await this.init();
       }
       const name = ext.name;
-      return this.wsMap[name] || (this.wsMap[name] = new WS(name));
+      return this.wsMap[name] || (this.wsMap[name] = new EventDispatcher(name));
     }
     // --- 事件分发 ---//
     static emitEvent(epId, event) {
@@ -636,19 +636,15 @@
   var WSManager = _WSManager;
 
   // src/net.ts
-  var NetworkClient = class {
+  var _NetworkClient = class _NetworkClient {
     static async init() {
       HTTPManager.init();
       WSManager.init();
     }
-    static async getWs(ext) {
-      const ws = await WSManager.getWs(ext);
-      logger.info(`插件[${ext.name}] 正在获取 ws 实例，当前 ws 实例名称有:`, Object.keys(WSManager.wsMap).join("、"));
+    static async getEventDispatcher(ext) {
+      const ws = await WSManager.getEventDispatcher(ext);
+      logger.info(`插件[${ext.name}] 正在获取 EventDispatcher 实例，当前 EventDispatcher 实例名称有:`, Object.keys(WSManager.wsMap).join("、"));
       return ws;
-    }
-    /** 兼容旧版本HTTP依赖 */
-    static async getData(epId, val, data = null) {
-      return await this.callApi(epId, val, data);
     }
     /**
      * 调用网络API（统一接口）
@@ -762,6 +758,11 @@
       });
     }
   };
+  /** 兼容旧版本HTTP依赖 */
+  _NetworkClient.getData = _NetworkClient.callApi;
+  /** 兼容旧版本2.0.1 */
+  _NetworkClient.getWs = _NetworkClient.getEventDispatcher;
+  var NetworkClient = _NetworkClient;
 
   // src/index.ts
   function main() {

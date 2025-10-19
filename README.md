@@ -13,17 +13,17 @@ net.callApi(epId, method, data)
         console.error('callApi error:', err);
     });
 
-net.getWs(ext)
-    .then((ws) => {
-        ws.onEvent = (epId, event) => {
+net.getEventDispatcher(ext)
+    .then((ed) => {
+        ed.onEvent = (epId, event) => {
             console.log('onEvent', epId, JSON.stringify(event));
         }
-        ws.onMessageEvent = (epId, event) => { };
-        ws.onNoticeEvent = (epId, event) => { };
-        ws.onRequestEvent = (epId, event) => { };
-        ws.onMetaEvent = (epId, event) => { };
+        ed.onMessageEvent = (epId, event) => { };
+        ed.onNoticeEvent = (epId, event) => { };
+        ed.onRequestEvent = (epId, event) => { };
+        ed.onMetaEvent = (epId, event) => { };
     })
     .catch((err) => {
-        console.error('getWs error:', err);
+        console.error('getEventDispatcher error:', err);
     });
 ```

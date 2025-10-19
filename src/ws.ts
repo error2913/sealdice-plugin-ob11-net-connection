@@ -9,7 +9,7 @@ export interface ConnectionInfo {
     apiCallbacks: Map<string, { resolve: (data: any) => void, reject: (error: Error) => void }>
 };
 
-export class WS {
+export class EventDispatcher {
     name: string;
     onEvent: (epId: string, event: OneBot11.Event) => void;
     onMessageEvent: (epId: string, event: OneBot11.MessageEvent) => void;
@@ -32,14 +32,14 @@ export class WSManager {
     static initDone: boolean = false;
 
     static wsConnections: { [key: string]: ConnectionInfo } = {};
-    static wsMap: { [key: string]: WS } = {};
+    static wsMap: { [key: string]: EventDispatcher } = {};
 
-    static async getWs(ext: seal.ExtInfo): Promise<WS> {
+    static async getEventDispatcher(ext: seal.ExtInfo): Promise<EventDispatcher> {
         if (!this.initDone) {
             await this.init();
         }
         const name = ext.name;
-        return this.wsMap[name] || (this.wsMap[name] = new WS(name));
+        return this.wsMap[name] || (this.wsMap[name] = new EventDispatcher(name));
     }
 
     // --- 事件分发 ---//
