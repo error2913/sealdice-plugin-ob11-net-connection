@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ob11网络连接依赖
 // @author       错误&白鱼
-// @version      2.0.0
+// @version      2.0.1
 // @description  为插件提供统一的ob11网络连接依赖管理，支持HTTP和WebSocket。\n地址请按照自己的登录方案自行配置，支持http和ws协议，支持多个账号。\nWebSocket会保持持久连接并接收事件推送。\n提供指令 .net 可以直接调用\n在其他插件中使用方法: globalThis.net.callApi(epId, method, data=null)\nepId为骰子账号QQ:12345，method为方法，如get_login_info，data为参数。\n方法可参见https://github.com/botuniverse/onebot-11/blob/master/api/public.md#%E5%85%AC%E5%BC%80-api
 // @timestamp    1755278205
 // @license      MIT
@@ -11,7 +11,7 @@
 // ==/UserScript==
 (() => {
   // src/config.ts
-  var VERSION = "2.0.0";
+  var VERSION = "2.0.1";
   var AUTHOR = "错误&白鱼";
   var NAME = "ob11网络连接依赖";
   var _ConfigManager = class _ConfigManager {
@@ -22,7 +22,7 @@
       seal.ext.registerTemplateConfig(this.ext, "WS地址", ["ws://127.0.0.1:8081"], "修改后保存并重新初始化");
       seal.ext.registerTemplateConfig(this.ext, "WS Access Token", [""], "在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空");
       seal.ext.registerOptionConfig(this.ext, "日志打印方式", "简短", ["永不", "简短", "详细"], "");
-      seal.ext.registerOptionConfig(this.ext, "事件处理", "记录", ["忽略", "记录"], "设置对WebSocket事件的处理方式");
+      seal.ext.registerOptionConfig(this.ext, "事件处理", "记录非消息", ["忽略", "记录非消息", "记录", "调试"], "设置对WebSocket事件的处理方式");
     }
     static getCache(key, getFunc) {
       var _a;
@@ -194,8 +194,8 @@
 
   // src/ws.ts
   var WS = class {
-    constructor(ext) {
-      this.name = ext.name;
+    constructor(name) {
+      this.name = name;
       this.onEvent = () => {
       };
       this.onMessageEvent = () => {
@@ -213,7 +213,8 @@
       if (!this.initDone) {
         await this.init();
       }
-      return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
+      const name = ext.name;
+      return this.wsMap[name] || (this.wsMap[name] = new WS(name));
     }
     // --- 事件分发 ---//
     static emitEvent(epId, event) {
@@ -429,12 +430,35 @@
       return eventDesc;
     }
     static handleEvent(epId, event) {
-      if (ConfigManager.eventLevel === "忽略") return;
-      if (ConfigManager.eventLevel === "记录") {
-        const eventDesc = this.getEventDescription(event);
-        logger.info(`[${epId}] 收到事件: ${eventDesc}`);
-        if (ConfigManager.logLevel === "详细") {
-          logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+      switch (ConfigManager.eventLevel) {
+        case "忽略": {
+          break;
+        }
+        case "记录非消息": {
+          if (event.post_type === "meta_event" || event.post_type === "message") break;
+          const eventDesc = this.getEventDescription(event);
+          logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+          if (ConfigManager.logLevel === "详细") {
+            logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+          }
+          break;
+        }
+        case "记录": {
+          if (event.post_type === "meta_event") break;
+          const eventDesc = this.getEventDescription(event);
+          logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+          if (ConfigManager.logLevel === "详细") {
+            logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+          }
+          break;
+        }
+        case "调试": {
+          const eventDesc = this.getEventDescription(event);
+          logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+          if (ConfigManager.logLevel === "详细") {
+            logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+          }
+          break;
         }
       }
       this.emitEvent(epId, event);
@@ -618,7 +642,9 @@
       WSManager.init();
     }
     static async getWs(ext) {
-      return await WSManager.getWs(ext);
+      const ws = await WSManager.getWs(ext);
+      logger.info(`插件[${ext.name}] 正在获取 ws 实例，当前 ws 实例名称有:`, Object.keys(WSManager.wsMap).join("、"));
+      return ws;
     }
     /** 兼容旧版本HTTP依赖 */
     static async getData(epId, val, data = null) {

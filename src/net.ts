@@ -9,7 +9,9 @@ export class NetworkClient {
     }
 
     static async getWs(ext: seal.ExtInfo): Promise<WS> {
-        return await WSManager.getWs(ext);
+        const ws = await WSManager.getWs(ext);
+        logger.info(`插件[${ext.name}] 正在获取 ws 实例，当前 ws 实例名称有:`, Object.keys(WSManager.wsMap).join('、'));
+        return ws;
     }
 
     /** 兼容旧版本HTTP依赖 */

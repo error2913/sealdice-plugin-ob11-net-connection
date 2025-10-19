@@ -1,4 +1,4 @@
-export const VERSION = "2.0.0";
+export const VERSION = "2.0.1";
 export const AUTHOR = "错误&白鱼";
 export const NAME = "ob11网络连接依赖";
 
@@ -18,7 +18,7 @@ export class ConfigManager {
         seal.ext.registerTemplateConfig(this.ext, 'WS地址', ['ws://127.0.0.1:8081'], '修改后保存并重新初始化');
         seal.ext.registerTemplateConfig(this.ext, 'WS Access Token', [''], '在这里填入你的Access Token，与上面的地址一一对应，如果没有则留空');
         seal.ext.registerOptionConfig(this.ext, "日志打印方式", "简短", ["永不", "简短", "详细"], '');
-        seal.ext.registerOptionConfig(this.ext, "事件处理", "记录", ["忽略", "记录"], '设置对WebSocket事件的处理方式');
+        seal.ext.registerOptionConfig(this.ext, "事件处理", "记录非消息", ["忽略", "记录非消息", "记录" , "调试"], '设置对WebSocket事件的处理方式');
     }
 
     static getCache<T>(key: string, getFunc: () => T): T {

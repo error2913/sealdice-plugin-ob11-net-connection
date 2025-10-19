@@ -17,8 +17,8 @@ export class WS {
     onRequestEvent: (epId: string, event: OneBot11.RequestEvent) => void;
     onMetaEvent: (epId: string, event: OneBot11.MetaEvent) => void;
 
-    constructor(ext: seal.ExtInfo) {
-        this.name = ext.name;
+    constructor(name: string) {
+        this.name = name;
         this.onEvent = () => { };
         this.onMessageEvent = () => { };
         this.onNoticeEvent = () => { };
@@ -38,7 +38,8 @@ export class WSManager {
         if (!this.initDone) {
             await this.init();
         }
-        return this.wsMap[ext.name] || (this.wsMap[ext.name] = new WS(ext));
+        const name = ext.name;
+        return this.wsMap[name] || (this.wsMap[name] = new WS(name));
     }
 
     // --- 事件分发 ---//
@@ -256,13 +257,35 @@ export class WSManager {
     }
 
     static handleEvent(epId: string, event: OneBot11.Event) {
-        if (ConfigManager.eventLevel === "忽略") return;
-        if (ConfigManager.eventLevel === "记录") {
-            const eventDesc = this.getEventDescription(event);
-            logger.info(`[${epId}] 收到事件: ${eventDesc}`);
-
-            if (ConfigManager.logLevel === "详细") {
-                logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+        switch (ConfigManager.eventLevel) {
+            case "忽略": {
+                break;
+            }
+            case "记录非消息": {
+                if (event.post_type === 'meta_event' || event.post_type === 'message') break;
+                const eventDesc = this.getEventDescription(event);
+                logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+                if (ConfigManager.logLevel === "详细") {
+                    logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+                }
+                break;
+            }
+            case "记录": {
+                if (event.post_type === 'meta_event') break;
+                const eventDesc = this.getEventDescription(event);
+                logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+                if (ConfigManager.logLevel === "详细") {
+                    logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+                }
+                break;
+            }
+            case "调试": {
+                const eventDesc = this.getEventDescription(event);
+                logger.info(`[${epId}] 收到事件: ${eventDesc}`);
+                if (ConfigManager.logLevel === "详细") {
+                    logger.info(`[${epId}] 完整事件数据: ${JSON.stringify(event, null, 2)}`);
+                }
+                break;
             }
         }
 
