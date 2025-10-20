@@ -16,7 +16,7 @@ export class NetworkClient {
 
     static async getEventDispatcher(ext: seal.ExtInfo): Promise<EventDispatcher> {
         const ws = await WSManager.getEventDispatcher(ext);
-        logger.info(`插件[${ext.name}] 正在获取 EventDispatcher 实例，当前 EventDispatcher 实例名称有:`, Object.keys(WSManager.wsMap).join('、'));
+        logger.info(`插件[${ext.name}] 正在获取 EventDispatcher 实例，当前 EventDispatcher 实例名称有:`, Object.keys(WSManager.eventDispatcherMap).join('、'));
         return ws;
     }
 

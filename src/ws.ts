@@ -32,20 +32,20 @@ export class WSManager {
     static initDone: boolean = false;
 
     static wsConnections: { [key: string]: ConnectionInfo } = {};
-    static wsMap: { [key: string]: EventDispatcher } = {};
+    static eventDispatcherMap: { [key: string]: EventDispatcher } = {};
 
     static async getEventDispatcher(ext: seal.ExtInfo): Promise<EventDispatcher> {
         if (!this.initDone) {
             await this.init();
         }
         const name = ext.name;
-        return this.wsMap[name] || (this.wsMap[name] = new EventDispatcher(name));
+        return this.eventDispatcherMap[name] || (this.eventDispatcherMap[name] = new EventDispatcher(name));
     }
 
     // --- 事件分发 ---//
     static emitEvent(epId: string, event: OneBot11.Event) {
-        for (const name of Object.keys(this.wsMap)) {
-            const ws = this.wsMap[name];
+        for (const name of Object.keys(this.eventDispatcherMap)) {
+            const ws = this.eventDispatcherMap[name];
 
             try { ws.onEvent(epId, event); } catch (e) { logger.error(`[${name}] 事件处理错误: ${e.message}`); }
             switch (event.post_type) {

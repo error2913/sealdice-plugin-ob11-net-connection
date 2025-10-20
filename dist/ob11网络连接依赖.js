@@ -214,12 +214,12 @@
         await this.init();
       }
       const name = ext.name;
-      return this.wsMap[name] || (this.wsMap[name] = new EventDispatcher(name));
+      return this.eventDispatcherMap[name] || (this.eventDispatcherMap[name] = new EventDispatcher(name));
     }
     // --- 事件分发 ---//
     static emitEvent(epId, event) {
-      for (const name of Object.keys(this.wsMap)) {
-        const ws = this.wsMap[name];
+      for (const name of Object.keys(this.eventDispatcherMap)) {
+        const ws = this.eventDispatcherMap[name];
         try {
           ws.onEvent(epId, event);
         } catch (e) {
@@ -632,7 +632,7 @@
   _WSManager.urlMap = {};
   _WSManager.initDone = false;
   _WSManager.wsConnections = {};
-  _WSManager.wsMap = {};
+  _WSManager.eventDispatcherMap = {};
   var WSManager = _WSManager;
 
   // src/net.ts
@@ -643,7 +643,7 @@
     }
     static async getEventDispatcher(ext) {
       const ws = await WSManager.getEventDispatcher(ext);
-      logger.info(`插件[${ext.name}] 正在获取 EventDispatcher 实例，当前 EventDispatcher 实例名称有:`, Object.keys(WSManager.wsMap).join("、"));
+      logger.info(`插件[${ext.name}] 正在获取 EventDispatcher 实例，当前 EventDispatcher 实例名称有:`, Object.keys(WSManager.eventDispatcherMap).join("、"));
       return ws;
     }
     /**
