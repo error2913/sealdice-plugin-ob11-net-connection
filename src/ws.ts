@@ -11,11 +11,11 @@ export interface ConnectionInfo {
 
 export class EventDispatcher {
     name: string;
-    onEvent: (epId: string, event: OneBot11.Event) => void;
-    onMessageEvent: (epId: string, event: OneBot11.MessageEvent) => void;
-    onNoticeEvent: (epId: string, event: OneBot11.NoticeEvent) => void;
-    onRequestEvent: (epId: string, event: OneBot11.RequestEvent) => void;
-    onMetaEvent: (epId: string, event: OneBot11.MetaEvent) => void;
+    onEvent: (epId: string, event: OneBot11.Event) => Promise<void> | void;
+    onMessageEvent: (epId: string, event: OneBot11.MessageEvent) => Promise<void> | void;
+    onNoticeEvent: (epId: string, event: OneBot11.NoticeEvent) => Promise<void> | void;
+    onRequestEvent: (epId: string, event: OneBot11.RequestEvent) => Promise<void> | void;
+    onMetaEvent: (epId: string, event: OneBot11.MetaEvent) => Promise<void> | void;
 
     constructor(name: string) {
         this.name = name;
@@ -45,24 +45,23 @@ export class WSManager {
     // --- 事件分发 ---//
     static emitEvent(epId: string, event: OneBot11.Event) {
         for (const name of Object.keys(this.eventDispatcherMap)) {
-            const ws = this.eventDispatcherMap[name];
-
-            try { ws.onEvent(epId, event); } catch (e) { logger.error(`[${name}] 事件处理错误: ${e.message}`); }
+            const ed = this.eventDispatcherMap[name];
+            Promise.resolve().then(() => ed.onEvent(epId, event)).catch(e => { logger.error(`[${name}] 事件处理错误: ${e.message}`); });
             switch (event.post_type) {
                 case 'message': {
-                    try { ws.onMessageEvent(epId, event as OneBot11.MessageEvent); } catch (e) { logger.error(`[${name}] message事件处理错误: ${e.message}`); }
+                    Promise.resolve().then(() => ed.onMessageEvent(epId, event as OneBot11.MessageEvent)).catch(e => logger.error(`[${name}] message事件处理错误: ${e.message}`));
                     break;
                 }
                 case 'notice': {
-                    try { ws.onNoticeEvent(epId, event as OneBot11.NoticeEvent); } catch (e) { logger.error(`[${name}] notice事件处理错误: ${e.message}`); }
+                    Promise.resolve().then(() => ed.onNoticeEvent(epId, event as OneBot11.NoticeEvent)).catch(e => logger.error(`[${name}] notice事件处理错误: ${e.message}`));
                     break;
                 }
                 case 'request': {
-                    try { ws.onRequestEvent(epId, event as OneBot11.RequestEvent); } catch (e) { logger.error(`[${name}] request事件处理错误: ${e.message}`); }
+                    Promise.resolve().then(() => ed.onRequestEvent(epId, event as OneBot11.RequestEvent)).catch(e => logger.error(`[${name}] request事件处理错误: ${e.message}`));
                     break;
                 }
                 case 'meta_event': {
-                    try { ws.onMetaEvent(epId, event as OneBot11.MetaEvent); } catch (e) { logger.error(`[${name}] meta_event事件处理错误: ${e.message}`); }
+                    Promise.resolve().then(() => ed.onMetaEvent(epId, event as OneBot11.MetaEvent)).catch(e => logger.error(`[${name}] meta_event事件处理错误: ${e.message}`));
                     break;
                 }
             }

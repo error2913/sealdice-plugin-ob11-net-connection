@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ob11网络连接依赖
 // @author       错误&白鱼
-// @version      2.0.1
+// @version      2.0.2
 // @description  为插件提供统一的ob11网络连接依赖管理，支持HTTP和WebSocket。\n地址请按照自己的登录方案自行配置，支持http和ws协议，支持多个账号。\nWebSocket会保持持久连接并接收事件推送。\n提供指令 .net 可以直接调用\n在其他插件中使用方法: globalThis.net.callApi(epId, method, data=null)\nepId为骰子账号QQ:12345，method为方法，如get_login_info，data为参数。\n方法可参见https://github.com/botuniverse/onebot-11/blob/master/api/public.md#%E5%85%AC%E5%BC%80-api
 // @timestamp    1755278205
 // @license      MIT
@@ -11,7 +11,7 @@
 // ==/UserScript==
 (() => {
   // src/config.ts
-  var VERSION = "2.0.1";
+  var VERSION = "2.0.2";
   var AUTHOR = "错误&白鱼";
   var NAME = "ob11网络连接依赖";
   var _ConfigManager = class _ConfigManager {
@@ -219,43 +219,25 @@
     // --- 事件分发 ---//
     static emitEvent(epId, event) {
       for (const name of Object.keys(this.eventDispatcherMap)) {
-        const ws = this.eventDispatcherMap[name];
-        try {
-          ws.onEvent(epId, event);
-        } catch (e) {
+        const ed = this.eventDispatcherMap[name];
+        Promise.resolve().then(() => ed.onEvent(epId, event)).catch((e) => {
           logger.error(`[${name}] 事件处理错误: ${e.message}`);
-        }
+        });
         switch (event.post_type) {
           case "message": {
-            try {
-              ws.onMessageEvent(epId, event);
-            } catch (e) {
-              logger.error(`[${name}] message事件处理错误: ${e.message}`);
-            }
+            Promise.resolve().then(() => ed.onMessageEvent(epId, event)).catch((e) => logger.error(`[${name}] message事件处理错误: ${e.message}`));
             break;
           }
           case "notice": {
-            try {
-              ws.onNoticeEvent(epId, event);
-            } catch (e) {
-              logger.error(`[${name}] notice事件处理错误: ${e.message}`);
-            }
+            Promise.resolve().then(() => ed.onNoticeEvent(epId, event)).catch((e) => logger.error(`[${name}] notice事件处理错误: ${e.message}`));
             break;
           }
           case "request": {
-            try {
-              ws.onRequestEvent(epId, event);
-            } catch (e) {
-              logger.error(`[${name}] request事件处理错误: ${e.message}`);
-            }
+            Promise.resolve().then(() => ed.onRequestEvent(epId, event)).catch((e) => logger.error(`[${name}] request事件处理错误: ${e.message}`));
             break;
           }
           case "meta_event": {
-            try {
-              ws.onMetaEvent(epId, event);
-            } catch (e) {
-              logger.error(`[${name}] meta_event事件处理错误: ${e.message}`);
-            }
+            Promise.resolve().then(() => ed.onMetaEvent(epId, event)).catch((e) => logger.error(`[${name}] meta_event事件处理错误: ${e.message}`));
             break;
           }
         }
